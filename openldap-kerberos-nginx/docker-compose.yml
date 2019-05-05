@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+
+  openldap:
+    image: osixia/openldap:latest
+    ports:
+      - 389:389
+      - 636:636
+    environment:
+      LDAP_ORGANISATION: Hanalytics
+      LDAP_DOMAIN: biomind
+      LDAP_ADMIN_PASSWORD: 4a53e4f5c42fd5a31890860b204472c5
+    volumes:
+      - openldap-database:/var/lib/ldap
+      - openldap-config:/etc/ldap/slapd.d
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest  
+    depends_on:
+      - openldap
+    ports:
+      - 8092:80
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: openldap
+      PHPLDAPADMIN_HTTPS: 'false'
+
+  authdaemon:
+    image: nginx-ldap-auth-daemon:latest
+    depends_on:
+      - openldap
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - authdaemon
+    ports:
+      - 8081:8081
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    command: [nginx, '-g', 'daemon off;']
+
+volumes:
+  openldap-database: null
+  openldap-config: null
