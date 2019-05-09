@@ -1,0 +1,65 @@
+# discovery-url: https://sso.example.com/auth/realms/example
+# client-id: KEYCLOAK_CLIENT_ID
+# client-secret: KEYCLOAK_CLIENT_SECRET
+# listen: 0.0.0.0:300
+# enable-refresh-tokens: false
+# redirection-url: https://example.com
+# encryption-key: VERY_SECRET_VALUE_OF_32_CHARS
+# upstream-url: http://127.0.0.1:4181
+# enable-token-header: false
+# enable-authorization-cookies: false
+# enable-refresh-tokens: true
+# enable-login-handler: true
+# http-only-cookie: true
+# cookie-access-name: sso-xxxxxx
+# cookie-refresh-name: sso-yyyyyy
+# preserve-host: true
+# scopes:
+#   - offline_access
+# match-claims:
+#   aud: KEYCLOAK_CLIENT_ID
+#   iss: https://sso.example.com/auth/realms/example
+# add-claims:
+#   - name
+# resources:
+#   - uri: /prometheus/*
+#   - uri: /grafana/*
+#   - uri: /alertmanager/*
+
+# client-id: service-gatekeeper
+# # uncomment if client is confidential
+# # client-secret: <client_secret>
+# enable-default-deny: true
+# # encryption key used to encryption the session state [$PROXY_ENCRYPTION_KEY]
+# encryption_key: <random_generated_secret>
+# listen: 127.0.0.1:3000
+# upstream-url: http://127.0.0.1:4181
+# resources:
+# - uri: /isprime
+#   methods:
+#   - POST
+#   roles:
+#   - service-gatekeeper:edit
+#   require-any-role: true
+
+
+# client-id: service-gatekeeper
+# uncomment if client is confidential
+# client-secret: <client_secret>
+enable-default-deny: true
+# encryption key used to encryption the session state [$PROXY_ENCRYPTION_KEY]
+# encryption_key: VERY_SECRET_VALUE_OF_32_CHARS
+# listen: 127.0.0.1:3000
+# upstream-url: http://<service_address>
+resources:
+- uri: /app
+  # methods:
+  # - GET
+  # roles:
+  # - service-gatekeeper:edit
+  # require-any-role: true
+# uncomment if client is confidential
+# client-secret: <client_secret>
+# discovery-url: http://<keycloak_address>/auth/realms/justice-league
+# encryption_key: <random_generated_secret>
+# upstream-url: http://<service_address>

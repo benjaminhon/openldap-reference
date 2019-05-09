@@ -1,0 +1,204 @@
+version: '2.3'
+
+networks:
+ kong-net:
+  driver: bridge
+
+services:
+
+  #######################################
+  # LDAP
+  #######################################
+
+  openldap:
+    image: osixia/openldap:latest
+    ports:
+      - 389:389 # unencrypted
+      - 636:636 # over ssl
+    environment:
+      LDAP_ORGANISATION:    Example
+      LDAP_DOMAIN:          example
+      LDAP_ADMIN_PASSWORD:  secret
+    volumes:
+      - openldap-database:/var/lib/ldap
+      - openldap-config:/etc/ldap/slapd.d
+      - ./example.ldif:/example.ldif
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest  
+    depends_on:
+      - openldap
+    ports:
+      - 8092:80
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS:  openldap # IP of openldap server
+      PHPLDAPADMIN_HTTPS:       'false'
+
+  #######################################
+  # Keycloak
+  #######################################
+
+  keycloak-database:
+    image: postgres:11.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    environment:
+      POSTGRES_DB:        keycloak
+      POSTGRES_USER:      keycloak
+      POSTGRES_PASSWORD:  password
+    volumes:
+      - keycloak-storage:/var/lib/postgresql/data:Z
+
+  keycloak:
+    image: jboss/keycloak:latest
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:8080/auth/realms/master"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 8s
+    depends_on:
+      keycloak-database:
+        condition: service_healthy
+      # openldap:
+      #   condition: service_started
+    environment:
+      DB_VENDOR:                POSTGRES
+      DB_ADDR:                  keycloak-database
+      DB_DATABASE:              keycloak
+      DB_USER:                  keycloak
+      DB_SCHEMA:                public
+      DB_PASSWORD:              password
+      KEYCLOAK_USER:            admin
+      KEYCLOAK_PASSWORD:        secret
+    ports:
+      - 8081:8080
+
+  #######################################
+  # Application Server
+  #######################################
+  appserver:
+    image: python:2-alpine
+    networks:
+      - kong-net
+    environment:
+      HOST: 0.0.0.0
+      PORT: 80
+    ports:
+      - 8080:80
+    volumes:
+      - ./appserver.py:/appserver.py
+    command: [python, /appserver.py]
+
+  #######################################
+  # Postgres: The database used by Kong
+  #######################################
+  kong-database:
+    image: postgres:11.0
+    restart: always
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    environment:
+      POSTGRES_USER:  kong
+      POSTGRES_DB:    kong
+    ports:
+      - "5432:5432"
+    volumes:
+      - kong-storage:/var/lib/postgresql/data:Z
+
+  #######################################
+  # Kong database migration
+  #######################################
+  # kong-migration:
+  #   image: kong:latest
+  #   networks:
+  #     - kong-net
+  #   restart: on-failure
+  #   environment:
+  #     KONG_PG_HOST: kong-database
+  #   depends_on:
+  #     kong-database:
+  #       condition: service_healthy
+  #   command: "kong migrations bootstrap && kong migrations up"
+
+  #######################################
+  # Kong: The API Gateway
+  #######################################
+  kong:
+    # image: kong:latest
+    image: kong:oidc
+    build:
+      context: .
+      dockerfile: Dockerfile-kongoidc
+    restart: always
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://kong:8001"]
+      interval: 5s
+      timeout: 2s
+      retries: 15
+    environment:
+      KONG_PG_HOST: kong-database
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_PROXY_LISTEN_SSL: 0.0.0.0:8443
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_PLUGINS: bundled,oidc
+    depends_on:
+      # kong-migration:
+      #   condition: service_started
+      kong-database:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+      - "8000:8000"
+
+  #######################################
+  # Konga database prepare
+  #######################################
+  # konga-prepare:
+  #   image: pantsel/konga:next
+  #   networks:
+  #     - kong-net
+  #   restart: on-failure
+  #   depends_on:
+  #     kong-database:
+  #       condition: service_healthy
+  #   command: "-c prepare -a postgres -u postgresql://kong@kong-database:5432/konga_db"
+
+  #######################################
+  # Konga: Kong GUI
+  #######################################
+  konga:
+    image: pantsel/konga:next
+    networks:
+      - kong-net
+    restart: always
+    environment:
+      DB_ADAPTER: postgres
+      DB_HOST: kong-database
+      DB_USER: kong
+      TOKEN_SECRET: km1GUr4RkcQD7DewhJPNXrCuZwcKmqjb
+      DB_DATABASE: konga_db
+      NODE_ENV: production
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    ports:
+      - "1337:1337"
+
+volumes:
+  kong-storage: null
+  keycloak-storage: null
+  openldap-database: null
+  openldap-config: null
