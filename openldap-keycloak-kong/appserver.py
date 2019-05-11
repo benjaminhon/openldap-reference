@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import os
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
+import urlparse
 
 host = os.getenv('HOST', '0.0.0.0')
 port = int(os.getenv('PORT', 80))
@@ -11,12 +12,22 @@ class myHandler(BaseHTTPRequestHandler):
     
     #Handler for the GET requests
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type','text/html')
-        self.end_headers()
-        # Send the html message
-        self.wfile.write("Hello World !")
-        return
+        url = urlparse.urlparse(self.path)
+
+        if url.path.startswith("/admin"):
+            self.send_response(200)
+            self.send_header('Content-type','text/html')
+            self.end_headers()
+            # Send the html message
+            self.wfile.write("Hello Admin !")
+            return
+        else:
+            self.send_response(200)
+            self.send_header('Content-type','text/html')
+            self.end_headers()
+            # Send the html message
+            self.wfile.write("Hello World !")
+            return
 
 try:
     #Create a web server and define the handler to manage the

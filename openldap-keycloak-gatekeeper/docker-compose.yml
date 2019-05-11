@@ -28,8 +28,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # openldap:
-      #   condition: service_started
     environment:
       DB_VENDOR:                POSTGRES
       DB_ADDR:                  postgres
@@ -39,6 +37,7 @@ services:
       DB_PASSWORD:              password
       KEYCLOAK_USER:            admin
       KEYCLOAK_PASSWORD:        secret
+      PROXY_ADDRESS_FORWARDING: 'true'
     ports:
       - 8080:8080
     volumes:
@@ -54,25 +53,6 @@ services:
       - ./appserver.py:/appserver.py
     command: [python, /appserver.py]
 
-  gatekeeper:
-    image: keycloak/keycloak-gatekeeper
-    depends_on:
-      keycloak:
-        condition: service_healthy
-    volumes:
-      - ./gatekeeper.yaml:/gatekeeper.yaml:ro
-    command: [
-      --config,                   "/gatekeeper.yaml",
-      --listen,                   "0.0.0.0:3000",
-      --upstream-url,             "https://${HOST}",
-      # --discovery-url,            "http://keycloak:8080/auth/realms/master",
-      --discovery-url,            "https://${HOST}/auth/realms/master",
-      --redirection-url,          "https://${HOST}",
-      --client-id,                appserver,
-      --client-secret,            d7bed7f9-73d9-4125-ace3-8493bcede8aa,
-      --skip-upstream-tls-verify, "true"
-    ]
-
   nginx:
     image: nginx:1.15.7
     healthcheck:
@@ -86,8 +66,6 @@ services:
         condition: service_healthy
       appserver:
         condition: service_started
-      gatekeeper:
-        condition: service_started
     ports:
       - 80:80
       - 443:443
@@ -98,6 +76,44 @@ services:
       - ./nginx/nginx-selfsigned.key:/etc/ssl/private/nginx-selfsigned.key
       - ./nginx/snippets:/etc/nginx/snippets
     command: [nginx, '-g', 'daemon off;']
+
+  nginx-upstream:
+    image: nginx:1.15.7
+    healthcheck:
+      test: ["CMD", "/bin/bash", "service nginx status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    volumes:
+      - ./nginx-upstream/conf.d:/etc/nginx/conf.d
+      - ./nginx-upstream/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx-upstream/nginx-selfsigned.crt:/etc/ssl/certs/nginx-selfsigned.crt
+      - ./nginx-upstream/nginx-selfsigned.key:/etc/ssl/private/nginx-selfsigned.key
+      - ./nginx-upstream/snippets:/etc/nginx/snippets
+    command: [nginx, '-g', 'daemon off;']
+
+  gatekeeper:
+    image: keycloak/keycloak-gatekeeper
+    restart: unless-stopped
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+    volumes:
+      - ./gatekeeper.yaml:/gatekeeper.yaml:ro
+    command: [
+      --config,                   "/gatekeeper.yaml",
+      --listen,                   "0.0.0.0:3000",
+      --discovery-url,            "http://${HOST}/auth/realms/master",
+      # --redirection-url,          "https://127.0.0.1:3000",
+      # --upstream-url,             "http://${HOST}",
+      --upstream-url,             "http://nginx-upstream",
+      --client-id,                appserver,
+      --client-secret,            d7bed7f9-73d9-4125-ace3-8493bcede8aa,
+      --skip-upstream-tls-verify, "true"
+    ]
 
 volumes:
   openldap-database: null

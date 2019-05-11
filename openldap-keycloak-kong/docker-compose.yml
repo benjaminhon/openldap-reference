@@ -6,15 +6,14 @@ networks:
 
 services:
 
-  #######################################
+  ##############################################################################
   # LDAP
-  #######################################
+  #
+  # openldap listens on port 389 and 636 (ssl)
+  ##############################################################################
 
   openldap:
     image: osixia/openldap:latest
-    ports:
-      - 389:389 # unencrypted
-      - 636:636 # over ssl
     environment:
       LDAP_ORGANISATION:    Example
       LDAP_DOMAIN:          example
@@ -34,9 +33,11 @@ services:
       PHPLDAPADMIN_LDAP_HOSTS:  openldap # IP of openldap server
       PHPLDAPADMIN_HTTPS:       'false'
 
-  #######################################
+  ##############################################################################
   # Keycloak
-  #######################################
+  #
+  # keycloak listens on port 8080
+  ##############################################################################
 
   keycloak-database:
     image: postgres:11.0
@@ -64,8 +65,8 @@ services:
     depends_on:
       keycloak-database:
         condition: service_healthy
-      # openldap:
-      #   condition: service_started
+      openldap:
+        condition: service_started
     environment:
       DB_VENDOR:                POSTGRES
       DB_ADDR:                  keycloak-database
@@ -116,20 +117,20 @@ services:
     volumes:
       - kong-storage:/var/lib/postgresql/data:Z
 
-  #######################################
-  # Kong database migration
-  #######################################
-  # kong-migration:
-  #   image: kong:latest
-  #   networks:
-  #     - kong-net
-  #   restart: on-failure
-  #   environment:
-  #     KONG_PG_HOST: kong-database
-  #   depends_on:
-  #     kong-database:
-  #       condition: service_healthy
-  #   command: "kong migrations bootstrap && kong migrations up"
+  # #######################################
+  # # Kong database migration
+  # #######################################
+  # # kong-migration:
+  # #   image: kong:latest
+  # #   networks:
+  # #     - kong-net
+  # #   restart: on-failure
+  # #   environment:
+  # #     KONG_PG_HOST: kong-database
+  # #   depends_on:
+  # #     kong-database:
+  # #       condition: service_healthy
+  # #   command: "kong migrations bootstrap && kong migrations up"
 
   #######################################
   # Kong: The API Gateway
@@ -163,18 +164,18 @@ services:
       - "8001:8001"
       - "8000:8000"
 
-  #######################################
-  # Konga database prepare
-  #######################################
-  # konga-prepare:
-  #   image: pantsel/konga:next
-  #   networks:
-  #     - kong-net
-  #   restart: on-failure
-  #   depends_on:
-  #     kong-database:
-  #       condition: service_healthy
-  #   command: "-c prepare -a postgres -u postgresql://kong@kong-database:5432/konga_db"
+  # #######################################
+  # # Konga database prepare
+  # #######################################
+  # # konga-prepare:
+  # #   image: pantsel/konga:next
+  # #   networks:
+  # #     - kong-net
+  # #   restart: on-failure
+  # #   depends_on:
+  # #     kong-database:
+  # #       condition: service_healthy
+  # #   command: "-c prepare -a postgres -u postgresql://kong@kong-database:5432/konga_db"
 
   #######################################
   # Konga: Kong GUI
