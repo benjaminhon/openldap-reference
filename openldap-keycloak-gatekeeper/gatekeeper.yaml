@@ -80,13 +80,16 @@
 # listen: 127.0.0.1:3000
 # upstream-url: http://<service_address>
 
+# match-claims:
+#   aud: appserver
+  # iss: http://192.168.1.132/auth/realms/master
 
 resources:
   - uri: /app
     methods:
       - GET
     roles:
-      - openvpn:vpn-user
+      - admin
     # white-listed: true
 
 
