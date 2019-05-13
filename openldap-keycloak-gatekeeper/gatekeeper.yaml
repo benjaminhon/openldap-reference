@@ -13,42 +13,14 @@
 # http-only-cookie: true
 # cookie-access-name: sso-xxxxxx
 # cookie-refresh-name: sso-yyyyyy
-# preserve-host: true
+preserve-host: true
 # scopes:
 #   - offline_access
 # match-claims:
 #   aud: KEYCLOAK_CLIENT_ID
 #   iss: https://sso.example.com/auth/realms/example
-# add-claims:
-#   - name
-# resources:
-#   - uri: /prometheus/*
-#   - uri: /grafana/*
-#   - uri: /alertmanager/*
-
-# discovery-url: https://sso.example.com/auth/realms/example
-# client-id: KEYCLOAK_CLIENT_ID
-# client-secret: KEYCLOAK_CLIENT_SECRET
-# listen: 0.0.0.0:300
-# enable-refresh-tokens: false
-# redirection-url: https://example.com
-# encryption-key: VERY_SECRET_VALUE_OF_32_CHARS
-# upstream-url: http://127.0.0.1:4181
-# enable-token-header: false
-# enable-authorization-cookies: false
-# enable-refresh-tokens: true
-# enable-login-handler: true
-# http-only-cookie: true
-# cookie-access-name: sso-xxxxxx
-# cookie-refresh-name: sso-yyyyyy
-# preserve-host: true
-# scopes:
-#   - offline_access
-# match-claims:
-#   aud: KEYCLOAK_CLIENT_ID
-#   iss: https://sso.example.com/auth/realms/example
-# add-claims:
-#   - name
+add-claims:
+  - name
 # resources:
 #   - uri: /prometheus/*
 #   - uri: /grafana/*
@@ -80,16 +52,23 @@
 # listen: 127.0.0.1:3000
 # upstream-url: http://<service_address>
 
-# match-claims:
-#   aud: appserver
-  # iss: http://192.168.1.132/auth/realms/master
+# cors-origins:
+# - '*'
+# cors-methods:
+# - GET
+# - POST
+
+match-claims:
+  aud: appserver
+  iss: http://192.168.86.64/auth/realms/master
 
 resources:
   - uri: /app
     methods:
       - GET
     roles:
-      - admin
+      - appserver:user
+    require-any-role: true
     # white-listed: true
 
 

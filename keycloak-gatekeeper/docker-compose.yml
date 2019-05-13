@@ -1,0 +1,84 @@
+version: '2.3'
+
+services:
+
+  appserver:
+    image: python:2-alpine
+    environment:
+      HOST: 0.0.0.0
+      PORT: 80
+    ports:
+      - 8081:80
+    volumes:
+      - ./appserver.py:/appserver.py
+    command: [python, /appserver.py]
+
+  postgres:
+    image: postgres:11.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    environment:
+      POSTGRES_DB:        keycloak
+      POSTGRES_USER:      keycloak
+      POSTGRES_PASSWORD:  password
+    volumes:
+      - pg-storage:/var/lib/postgresql/data:Z
+
+  keycloak:
+    image: jboss/keycloak:latest
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:8080/auth/realms/master"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 8s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_VENDOR:                POSTGRES
+      DB_ADDR:                  postgres
+      DB_DATABASE:              keycloak
+      DB_USER:                  keycloak
+      DB_SCHEMA:                public
+      DB_PASSWORD:              password
+      KEYCLOAK_USER:            admin
+      KEYCLOAK_PASSWORD:        secret
+      # PROXY_ADDRESS_FORWARDING: 'true'
+    ports:
+      - 8080:8080
+
+  # gatekeeper:
+  #   image: keycloak/keycloak-gatekeeper:latest
+  #   # restart: unless-stopped
+  #   depends_on:
+  #     keycloak:
+  #       condition: service_healthy
+  #   ports:
+  #     - 3000:3000
+  #   volumes:
+  #     - ./gatekeeper.yaml:/gatekeeper.yaml:ro
+  #   command: [
+  #     --config, "/gatekeeper.yaml",
+  #     --enable-logging, "true",
+  #     --enable-json-logging, "true",
+  #     --verbose, "true"
+  #   ]
+
+  gatekeeper:
+    image: bitnami/keycloak-gatekeeper:latest
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    command: /keycloak-proxy --config /opt/bitnami/keycloak-gatekeeper/config.yaml
+    volumes:
+      - ./gatekeeper.yaml:/opt/bitnami/keycloak-gatekeeper/config.yaml:ro
+
+volumes:
+  pg-storage: null

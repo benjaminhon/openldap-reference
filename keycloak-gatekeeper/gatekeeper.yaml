@@ -1,0 +1,26 @@
+enable-json-logging: true
+verbose: true
+secure-cookie: false
+
+listen: 0.0.0.0:3000
+discovery-url: http://skynet:8080/auth/realms/justice-league
+upstream-url: http://skynet:8081
+redirection-url: http://skynet:3000
+
+client-id: service-gatekeeper
+client-secret: a02a7867-b713-4b1f-81d7-6bfd07ec7937
+enable-default-deny: true
+encryption_key: AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j
+
+match-claims:
+  aud: service-gatekeeper
+  iss: http://skynet:8080/auth/realms/justice-league
+
+resources:
+- uri: /app
+  methods:
+  - GET
+  roles:
+  - service-gatekeeper:edit
+  # require-any-role: true
+  # white-listed: true
